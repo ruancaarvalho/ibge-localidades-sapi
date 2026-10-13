@@ -1,0 +1,938 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd ">
+    <http:listener-config name="api-httpListenerConfig">
+        <http:listener-connection host="0.0.0.0" port="8081" />
+    </http:listener-config>
+    <apikit:config name="api-config" api="resource::6e33b28e-8dbd-45bb-abc6-a1421b7b3b5b:ibge-localidades-sapi:1.0.3:raml:zip:api.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="ecc25ced-8d02-4038-9dc0-e4fc0d34e7ad" basePath="/api/v1/localidades">
+        <http:request-connection protocol="HTTPS" host="servicodados.ibge.gov.br" />
+    </http:request-config>
+    <flow name="api-main">
+        <http:listener config-ref="api-httpListenerConfig" path="/api/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="api-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="api-console">
+        <http:listener config-ref="api-httpListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="api-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="get:\aglomeracoes-urbanas:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  error: "Unauthorized",
+  message: "Invalid client_id or client_secret"
+} as Object {encoding: "UTF-8", mediaType: "application/json"}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="get:\estados\(id)\aglomeracoes-urbanas:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <logger level="INFO" message="get:\estados\(id)\aglomeracoes-urbanas:api-config" />
+    </flow>
+    <flow name="get:\aglomeracoes-urbanas\(id)\distritos:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  error: "Unauthorized",
+  message: "Invalid client_id or client_secret"
+} as Object {encoding: "UTF-8", mediaType: "application/json"}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="get:\municipios\(id)\distritos:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  error: "Unauthorized",
+  message: "Invalid client_id or client_secret"
+} as Object {encoding: "UTF-8", mediaType: "application/json"}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="get:\distritos:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  error: "Unauthorized",
+  message: "Invalid client_id or client_secret"
+} as Object {encoding: "UTF-8", mediaType: "application/json"}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="get:\estados\(id)\distritos:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  error: "Unauthorized",
+  message: "Invalid client_id or client_secret"
+} as Object {encoding: "UTF-8", mediaType: "application/json"}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="get:\estados:api-config">
+        <http:request method="GET" doc:name="Request" doc:id="0428fceb-0473-4b35-8545-0025d7300e9e" config-ref="HTTP_Request_configuration" path="/estados">
+            <http:query-params><![CDATA[#[output application/java
+---
+{
+	"orderBy" : attributes.queryParams."orderBy" default "id",
+	"view" : attributes.queryParams."view" default "json"
+}]]]></http:query-params>
+        </http:request>
+    </flow>
+    <flow name="get:\regioes\(id)\estados:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="310a58c3-0b88-4630-97c0-4317f14c6787" config-ref="HTTP_Request_configuration" path="/regioes/{macroregiao}/estados">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"macroregiao" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\estados\(id)\mesorregioes:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="96ad21d9-548d-4e23-bf61-02e247342bcb" config-ref="HTTP_Request_configuration" path="/estados/{mesouf}/mesorregioes">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"mesouf" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\regioes\(id)\mesorregioes:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="34ae6793-5591-44fd-9ecb-51a6951ca4e4" config-ref="HTTP_Request_configuration" path="/regioes/{mesoreg}/mesorregioes">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"mesoreg" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\mesorregioes:api-config">
+        <http:request method="GET" doc:name="Request" doc:id="7a94ec52-551f-410d-ba0b-7726313219a9" config-ref="HTTP_Request_configuration" path="/mesorregioes">
+            <http:query-params><![CDATA[#[output application/java
+---
+{
+	"orderBy" : attributes.queryParams."orderBy" default "id",
+	"view" : attributes.queryParams."view" default "json",
+}]]]></http:query-params>
+        </http:request>
+    </flow>
+    <flow name="get:\microrregioes:api-config">
+        <http:request method="GET" doc:name="Request" doc:id="34278a58-a025-4192-b148-bf83564274fc" config-ref="HTTP_Request_configuration" path="/microrregioes">
+            <http:query-params><![CDATA[#[output application/java
+---
+{
+	"orderBy" : attributes.queryParams."orderBy" default "id",
+	"view" : attributes.queryParams."view" default "json"
+}]]]></http:query-params>
+        </http:request>
+    </flow>
+    <flow name="get:\regioes\(id)\microrregioes:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="62c560aa-4341-4955-b854-3faee0df805f" config-ref="HTTP_Request_configuration" path="/regioes/{microreg}/microrregioes">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"microreg" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\estados\(id)\microrregioes:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="3c2beb44-9712-4998-98ec-cd9ccce49c7c" config-ref="HTTP_Request_configuration" path="/estados/{microuf}/microrregioes">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"microuf" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\mesorregioes\(id)\microrregioes:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="94c75870-4508-4ae6-8171-bf7e9383fce5" config-ref="HTTP_Request_configuration" path="/mesorregioes/{micromeso}/microrregioes">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"micromeso" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\regioes\(id)\municipios:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="4f6599a1-25e3-4af6-967f-13ea78a631e1" config-ref="HTTP_Request_configuration" path="/regioes/{munreg}/municipios">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"munreg" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\regioes-intermediarias\(id)\municipios:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="7550c29a-dda4-477d-8344-61f2e4df8025" config-ref="HTTP_Request_configuration" path="/regioes-intermediarias/{munregint}/municipios">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"munregint" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\municipios:api-config">
+        <http:request method="GET" doc:name="Request" doc:id="c5e917bc-fe95-43ad-b365-f56346aae1cc" config-ref="HTTP_Request_configuration" path="/municipios">
+            <http:query-params><![CDATA[#[output application/java
+---
+{
+	"orderBy" : attributes.queryParams."orderBy" default "id",
+	"view" : attributes.queryParams."view" default "json",
+}]]]></http:query-params>
+        </http:request>
+    </flow>
+    <flow name="get:\estados\(id)\municipios:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="4e941bfe-58f7-4f57-8f45-12c2dcf09af2" config-ref="HTTP_Request_configuration" path="/estados/{munuf}/municipios">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"munuf" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\aglomeracoes-urbanas\(id)\municipios:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  error: "Unauthorized",
+  message: "Invalid client_id or client_secret"
+} as Object {encoding: "UTF-8", mediaType: "application/json"}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="get:\microrregioes\(id)\municipios:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="9fd4a31b-d9d6-4f11-b7bd-b3935158917f" config-ref="HTTP_Request_configuration" path="/microrregioes/{munmicro}/municipios">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"munmicro" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\mesorregioes\(id)\municipios:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="5c9c678d-0f6f-4060-a841-aeafd2c1af39" config-ref="HTTP_Request_configuration" path="/mesorregioes/{munmeso}/municipios">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"munmeso" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\regioes-imediatas\(id)\municipios:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="7339a366-cfa6-45b2-84e3-d6b3af30a062" config-ref="HTTP_Request_configuration" path="/regioes-imediatas/{munregime}/municipios">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"munregime" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\paises:api-config">
+        <http:request method="GET" doc:name="Request" doc:id="9c493916-a525-453e-a985-e4d62f516a36" config-ref="HTTP_Request_configuration" path="/paises">
+            <http:query-params><![CDATA[#[output application/java
+---
+{
+	"orderBy" : attributes.queryParams."orderBy" default "id",
+	"view" : attributes.queryParams."view" default "json"
+}]]]></http:query-params>
+        </http:request>
+    </flow>
+    <flow name="get:\regioes:api-config">
+        <http:request method="GET" doc:name="Request" doc:id="6850f82b-fde1-4cdd-9cfc-a95dd318351c" config-ref="HTTP_Request_configuration" path="/regioes">
+            <http:query-params><![CDATA[#[output application/java
+---
+{
+	"orderBy" : attributes.queryParams."orderBy" default "id",
+	"view" : attributes.queryParams."view" default "json",
+}]]]></http:query-params>
+        </http:request>
+    </flow>
+    <flow name="get:\estados\(id)\regioes-imediatas:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="c04cec58-e6d9-4e65-a7a0-68f916a4fcfc" config-ref="HTTP_Request_configuration" path="/estados/{regimeid}/regioes-imediatas">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"regimeid" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\regioes\(id)\regioes-imediatas:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="55149f22-2952-4089-a360-5ab90c56ef8d" config-ref="HTTP_Request_configuration" path="/regioes/{regimereg}/regioes-imediatas">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"regimereg" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\regioes-intermediarias\(id)\regioes-imediatas:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="4dc6492b-d04e-4630-908f-23355bc61e8f" config-ref="HTTP_Request_configuration" path="/regioes-intermediarias/{regimeri}/regioes-imediatas">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"regimeri" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\regioes-imediatas:api-config">
+        <http:request method="GET" doc:name="Request" doc:id="88074765-b58c-4ab5-9df9-30d1994c0e73" path="/regioes-imediatas" config-ref="HTTP_Request_configuration">
+            <http:query-params><![CDATA[#[output application/java
+---
+{
+	"orderBy" : attributes.queryParams."orderBy" default "id",
+	"view" : attributes.queryParams."view" default "json",
+}]]]></http:query-params>
+        </http:request>
+    </flow>
+    <flow name="get:\regioes-integradas-desenvolvimento:api-config">
+        <http:request method="GET" doc:name="Request" doc:id="38858151-bc48-427b-a2c5-1a0f4d68c5fc" config-ref="HTTP_Request_configuration" path="/regioes-integradas-de-desenvolvimento">
+            <http:query-params><![CDATA[#[output application/java
+---
+{
+	"orderBy" : attributes.queryParams."orderBy" default "id",
+	"view" : attributes.queryParams."view" default "json",
+}]]]></http:query-params>
+        </http:request>
+    </flow>
+    <flow name="get:\regioes-intermediarias:api-config">
+        <http:request method="GET" doc:name="Request" doc:id="ffe94138-7550-458e-8908-9c67529306e4" config-ref="HTTP_Request_configuration" path="/regioes-intermediarias">
+            <http:query-params><![CDATA[#[output application/java
+---
+{
+	"orderBy" : attributes.queryParams."orderBy" default "id",
+	"view" : attributes.queryParams."view" default "json"
+	
+	}]]]></http:query-params>
+        </http:request>
+    </flow>
+    <flow name="get:\estados\(id)\regioes-intermediarias:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="219e2b66-c9b9-4d8d-aafe-2f2829d962c2" config-ref="HTTP_Request_configuration" path="/estados/{reginterid}/regioes-intermediarias">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"reginterid" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\regioes\(id)\regioes-intermediarias:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="ceca1002-baf2-4c09-87b8-71fa8c5131bf" config-ref="HTTP_Request_configuration" path="/regioes/{interreg}/regioes-intermediarias">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"interreg" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\regioes-metropolitanas:api-config">
+        <http:request method="GET" doc:name="Request" doc:id="b1ccfb1d-7855-40ed-9da6-e025b9d45e2b" config-ref="HTTP_Request_configuration" path="/regioes-metropolitanas">
+            <http:query-params><![CDATA[#[output application/java
+---
+{
+	"orderBy" : attributes.queryParams."orderBy" default "id",
+	"view" : attributes.queryParams."view" default "json"
+}]]]></http:query-params>
+        </http:request>
+    </flow>
+    <flow name="get:\estados\(id)\subdistritos:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="a78400fa-4f0d-43f2-817e-bb79f8e5842c" config-ref="HTTP_Request_configuration" path="/estados/{uf}/subdistritos">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"uf" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\regioes-imediatas\(id)\subdistritos:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="ea021d8f-d06b-4d40-b114-1ffcc7d45e03" config-ref="HTTP_Request_configuration" path="/regioes-imediatas/{imediata}/subdistritos">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"imediata" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\microrregioes\(id)\subdistritos:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="2191b8c1-768c-4f2f-b79d-9c8b7c644541" config-ref="HTTP_Request_configuration" path="/microrregioes/{microregiao}/subdistritos">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"microregiao" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\municipios\(id)\subdistritos:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="ed20e0dc-dab0-4c8c-8ff7-524d214808d8" config-ref="HTTP_Request_configuration" path="/municipios/{municipio}/subdistritos">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"municipio" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\mesorregioes\(id)\subdistritos:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="a20d481e-87b8-4aaa-8320-9d8d6ff097f1" config-ref="HTTP_Request_configuration" path="/mesorregioes/{mesoregiao}/subdistritos">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"mesoregiao" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\subdistritos:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  error: "Unauthorized",
+  message: "Invalid client_id or client_secret"
+} as Object {encoding: "UTF-8", mediaType: "application/json"}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="50b27b4e-3fa9-4ee5-b7fe-b5e8fc57cb56" config-ref="HTTP_Request_configuration" path="/subdistritos">
+            <http:query-params><![CDATA[#[output application/java
+---
+{
+	"orderBy" : attributes.queryParams."orderBy" default "id",
+	"view" : attributes.queryParams."view" default "json"
+}]]]></http:query-params>
+        </http:request>
+    </flow>
+    <flow name="get:\distritos\(id)\subdistritos:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="4a95ab79-fed7-4c9a-8294-b6305726ba98" config-ref="HTTP_Request_configuration" path="/distritos/{disdtrito}/subdistritos">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"disdtrito" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\regioes\(id)\subdistritos:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="ba4a8b6e-8cee-4ceb-a5f5-f03b3d695874" config-ref="HTTP_Request_configuration" path="/regioes/{regid}/subdistritos">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"regid" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\regioes-metropolitanas\uf\(uf):api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="uf">attributes.uriParams.'uf'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  error: "Unauthorized",
+  message: "Invalid client_id or client_secret"
+} as Object {encoding: "UTF-8", mediaType: "application/json"}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="get:\regioes-integradas-desenvolvimento\(id):api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="98135d89-1405-4dd5-af3b-fbce570e9338" config-ref="HTTP_Request_configuration" path="/regioes-integradas-de-desenvolvimento/{ridid}">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"ridid" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\distritos\(id):api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  error: "Unauthorized",
+  message: "Invalid client_id or client_secret"
+} as Object {encoding: "UTF-8", mediaType: "application/json"}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="get:\microrregioes\(id):api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="aaef2225-a507-4b35-bb68-8aa61da66cc6" config-ref="HTTP_Request_configuration" path="/microrregioes/{microid}">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"microid" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\regioes-metropolitanas\(id):api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="be389c07-666c-4d57-a3b1-e575dce06db3" config-ref="HTTP_Request_configuration" path="/regioes-metropolitanas/{metroid}">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"metroid" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\municipios\(id):api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <logger level="INFO" message="get:\municipios\(id):api-config" />
+        <http:request method="GET" doc:name="Request" doc:id="dbfaece3-fdb7-4f75-9c02-045274932d15" config-ref="HTTP_Request_configuration" path="/municipios/{munid}">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"munid" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\regioes-intermediarias\(id):api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="d51d8cbf-9d4a-46a8-8ca5-c50296fc36c0" config-ref="HTTP_Request_configuration" path="/regioes-intermediarias/{interid}">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"interid" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\aglomeracoes-urbanas\(id):api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <logger level="INFO" message="get:\aglomeracoes-urbanas\(id):api-config" />
+    </flow>
+    <flow name="get:\subdistritos\(id):api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="200802ad-67bd-447a-8fad-c1c9ff10358c" config-ref="HTTP_Request_configuration" path="/subdistritos/{subid}">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"subid" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\regioes-imediatas\(id):api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="cd915df7-ef12-477f-85ff-437f036f4afc" config-ref="HTTP_Request_configuration" path="/regioes-imediatas/{regimeidd}">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"regimeidd" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\regioes\(id):api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="a59b4411-e45d-435a-a628-8ff7057e6c62" config-ref="HTTP_Request_configuration" path="/regioes/{regid}">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"regid" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\estados\(id):api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="idestado"><![CDATA[attributes.uriParams.'id']]></ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="1689f9ca-c582-44c6-a8a7-a091a7f752d4" config-ref="HTTP_Request_configuration" path="/estados/{id}">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"id" : vars.idestado
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\paises\(id):api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="b5114832-c623-4123-9ab6-c01434917158" config-ref="HTTP_Request_configuration" path="/paises/{paisesid}">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"paisesid" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\mesorregioes\(id):api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="cc5976db-4e95-4ba4-91b5-f503c056c2c7" config-ref="HTTP_Request_configuration" path="/mesorregioes/{mesoid}">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"mesoid" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+    <flow name="get:\regioes-metropolitanas\regiao\(regiao):api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="regiao">attributes.uriParams.'regiao'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  error: "Unauthorized",
+  message: "Invalid client_id or client_secret"
+} as Object {encoding: "UTF-8", mediaType: "application/json"}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="get:\regioes\(id)\regioes-metropolitanas:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+		<http:request method="GET" doc:name="Request" doc:id="6e92e8f2-8fa7-4ec3-867f-9e3c88b1f6e9" config-ref="HTTP_Request_configuration" path="/regioes/{macrorregiao}/regioes-metropolitanas">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"macrorregiao" : vars.id
+}]]]></http:uri-params>
+		</http:request>
+    </flow>
+    <flow name="get:\estados\(id)\regioes-metropolitanas:api-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <http:request method="GET" doc:name="Request" doc:id="21f040ee-23cc-4489-a45a-7e4328e7206d" config-ref="HTTP_Request_configuration" path="/estados/{metrouf}/regioes-metropolitanas">
+            <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"metrouf" : vars.id
+}]]]></http:uri-params>
+        </http:request>
+    </flow>
+</mule>
